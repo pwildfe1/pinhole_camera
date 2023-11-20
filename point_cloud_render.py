@@ -43,9 +43,9 @@ class PinholeCamera:
         print(px.shape)
         fig, ax = plt.subplots(1, 1, figsize=(10,10))
         ax.scatter(px[:,0], px[:,1], color=colors, s=1)
-        ax.set_ylim(-940, 940)
-        ax.set_xlim(-940, 940)
-        plt.show()
+        ax.set_ylim(-540, 540)
+        ax.set_xlim(-540, 540)
+        # plt.show()
 
         return px
 
@@ -75,7 +75,7 @@ class Snapshot:
         index_u = np.where(self.pixels[:, 0] == pixel[0])[0]
         index_v = np.where(self.pixels[:, 1] == pixel[1])[0]
 
-        if len(list(index_v)) == 0:
+        if len(list(index_v)) == 0 or len(list(index_v)) == 0:
             return [index, pt]
 
         index_of_indices = np.where(index_u - index_v[0] == 0)[0]
@@ -90,19 +90,25 @@ class Snapshot:
 
     def export_image(self):
 
-        img = np.zeros((self.width, self.height, 3))
+        data = np.zeros((self.width, self.height, 3))
+        data_indices = np.zeros((self.width, self.height))
+        pixels = self.pixels[:] + int(self.width/2)
 
-        for i in range(self.width):
-            for j in range(self.height):
-                index, pt = self.evaluate_pixel(np.array([i - 940, j - 940]))
-                if index != -1:
-                    img[i, j, :] = 1
-                else:
-                    img[i, j] = self.colors[index]
-            print(str(i/self.width * 100) + "%")
+        target_pixels, indices = np.unique(pixels, axis = 0, return_index=True)
+
+        for i in range(target_pixels.shape[0]):
+            if target_pixels[i, 0] < 1080 and target_pixels[i, 0] > 0 and target_pixels[i, 1] < 1080 and target_pixels[i, 1] > 0:
+                data[target_pixels[i, 0], target_pixels[i, 1]] = self.colors[indices[i]]
+                data_indices[target_pixels[i, 0], target_pixels[i, 1]] = indices[i]
+
+
+        data = data[:]*255
+        im = data.astype("uint8")
  
-        data = Image.fromarray(img)
-        data.save("test.png")
+        img = Image.fromarray(im)
+        img.save("single_frame.png")
+        np.save("saved_positions.npy", data_indices)
+
 
 
 
