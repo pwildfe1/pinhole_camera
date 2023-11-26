@@ -2,6 +2,7 @@ import os
 import logging
 import json
 import numpy as np
+import cv2
 import matplotlib.pyplot as plt
 from PIL import Image
 import open3d as o3d
@@ -90,24 +91,28 @@ class Snapshot:
 
     def export_image(self):
 
-        data = np.zeros((self.width, self.height, 3))
-        data_indices = np.zeros((self.width, self.height))
+        color_data = np.zeros((self.width, self.height, 3))
+        position_data = np.zeros((self.width, self.height, 3))
+        index_data = []
+        color_data = color_data + 1
         pixels = self.pixels[:] + int(self.width/2)
 
         target_pixels, indices = np.unique(pixels, axis = 0, return_index=True)
 
         for i in range(target_pixels.shape[0]):
-            if target_pixels[i, 0] < 1080 and target_pixels[i, 0] > 0 and target_pixels[i, 1] < 1080 and target_pixels[i, 1] > 0:
-                data[target_pixels[i, 0], target_pixels[i, 1]] = self.colors[indices[i]]
-                data_indices[target_pixels[i, 0], target_pixels[i, 1]] = indices[i]
+            if target_pixels[i, 0] < self.width and target_pixels[i, 0] > 0 and target_pixels[i, 1] < self.height and target_pixels[i, 1] > 0:
+                color_data[target_pixels[i, 0], target_pixels[i, 1]] = self.colors[indices[i]]
+                position_data[target_pixels[i, 0], target_pixels[i, 1]] = self.v[indices[i]]
+                index_data.append(indices[i])
 
 
-        data = data[:]*255
-        im = data.astype("uint8")
+        color_data = color_data[:]*255
+        im = color_data.astype("uint8")
  
         img = Image.fromarray(im)
-        img.save("single_frame.png")
-        np.save("saved_positions.npy", data_indices)
+        img.save("single_frame.jpg")
+        np.save("saved_indices.npy", np.array(index_data))
+        np.save("saved_positions.npy", np.array(position_data))
 
 
 
@@ -119,7 +124,7 @@ def main(file):
     pcd = o3d.io.read_point_cloud(file)
     pcd = pcd.scale(100, [0, 0, 0])
     v = np.asarray(pcd.points)
-    pcd = pcd.translate([0, 0, -(np.max(v[:,2]) - np.min(v[:,2]))])
+    pcd = pcd.translate([0, 0, -3*(np.max(v[:,2]) - np.min(v[:,2]))])
     # pcd = pcd.voxel_down_sample(voxel_size=0.05)
     # search_param=o3d.geometry.KDTreeSearchParamHybrid(
     #     radius=0.001, max_nn=30)
@@ -132,7 +137,7 @@ def main(file):
     projected = myCamera.renderPts(v, v_colors)
     print(v.shape)
     print(projected.shape)
-    mySnapshot = Snapshot(v, projected, v_colors, width = 1080, height = 1080)
+    mySnapshot = Snapshot(v, projected, v_colors, width = 600, height = 600)
     mySnapshot.export_image()
 
     # o3d.visualization.draw_geometries([pcd])
